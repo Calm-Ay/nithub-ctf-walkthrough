@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NITHUB CTF Walkthrough | Calm Ay</title>
+  <meta name="description" content="NITHUB Security Lab CTF — a guided web walkthrough from recon to admin. robots.txt discovery, info disclosure, SQLi login bypass, IDOR, and role-cookie privilege escalation, using Burp, ffuf, and DevTools. Full exploit chain to the flag."/>
+  <meta property="og:title" content="NITHUB CTF Walkthrough | Calm Ay"/>
+  <meta property="og:description" content="Recon → info disclosure → SQLi → IDOR → client-trust priv-esc. A guided NITHUB Security Lab web CTF, walked end to end to the flag."/>
+  <meta property="og:url" content="https://calm-ay.github.io/nithub-ctf-walkthrough/"/>
+  <meta property="og:image" content="https://calm-ay.github.io/photo.jpg"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e62020' d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/></svg>"/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{--red:#e62020;--white:#ffffff;--black:#000000;--card:#0d0d0d;--gray:#777;--border:#1c1c1c;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--black);color:var(--white);font-family:'Space Grotesk',sans-serif;overflow-x:hidden;}
+    ::-webkit-scrollbar{width:3px;}
+    ::-webkit-scrollbar-track{background:#000;}
+    ::-webkit-scrollbar-thumb{background:var(--red);}
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:18px 50px;background:rgba(0,0,0,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+    .nav-logo{display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:3px;color:var(--white);text-decoration:none;}
+    .nav-logo .bolt{color:var(--red);}
+    .nav-back{font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gray);text-decoration:none;font-weight:700;transition:color 0.2s;}
+    .nav-back:hover{color:var(--white);}
+    .wrap{max-width:1100px;margin:0 auto;padding:0 60px;}
+    .label{display:flex;align-items:center;gap:12px;font-size:0.68rem;letter-spacing:3px;color:var(--red);text-transform:uppercase;font-weight:700;margin-bottom:28px;}
+    .label::before{content:'';display:block;width:28px;height:2px;background:var(--red);}
+    .heading{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(3rem,7vw,6rem);line-height:0.9;text-transform:uppercase;}
+    .heading .w{color:var(--white);display:block;}
+    .heading .r{color:var(--red);display:block;}
+    .hero{min-height:100vh;display:flex;align-items:center;padding-top:80px;}
+    .hero-divider{width:50px;height:3px;background:var(--red);margin:22px 0;}
+    .hero-sub{color:var(--gray);font-size:0.92rem;line-height:1.75;max-width:600px;margin-top:8px;}
+    .tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+    .tag{font-size:0.58rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid #2a2a2a;color:var(--gray);padding:3px 10px;border-radius:2px;font-weight:600;}
+    .btn-r{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;padding:13px 30px;border-radius:3px;font-weight:700;font-size:0.8rem;letter-spacing:2px;text-decoration:none;transition:opacity 0.2s;margin-top:28px;}
+    .btn-r:hover{opacity:0.82;}
+    .section{padding:80px 0;}
+    .meta-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px;}
+    .meta-card{background:#080808;border:1px solid var(--border);border-radius:3px;padding:22px;}
+    .meta-k{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--gray);font-weight:700;margin-bottom:8px;}
+    .meta-v{font-weight:600;font-size:0.92rem;color:var(--white);}
+    .meta-v code{color:var(--red);font-size:0.82rem;}
+    .area-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px;}
+    .area-card{background:#080808;border:1px solid var(--border);border-radius:3px;padding:24px;position:relative;}
+    .area-step{position:absolute;top:18px;right:22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.6rem;color:#1a1a1a;}
+    .area-label{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--red);font-weight:700;margin-bottom:10px;}
+    .area-title{font-weight:700;font-size:0.95rem;margin-bottom:6px;padding-right:36px;}
+    .area-desc{font-size:0.75rem;color:var(--gray);line-height:1.6;}
+    .area-desc code{color:var(--red);font-size:0.72rem;}
+    .doc-row{background:#080808;border:1px solid var(--border);border-radius:3px;padding:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:36px;}
+    .doc-row:hover{border-color:#2a2a2a;}
+    .doc-title{font-weight:700;font-size:0.95rem;margin-bottom:5px;}
+    .doc-desc{font-size:0.78rem;color:var(--gray);line-height:1.6;max-width:560px;}
+    .doc-dl{display:inline-flex;align-items:center;gap:6px;background:var(--red);color:#fff;padding:10px 20px;border-radius:3px;font-weight:700;font-size:0.72rem;letter-spacing:2px;text-decoration:none;transition:opacity 0.2s;white-space:nowrap;flex-shrink:0;}
+    .doc-dl:hover{opacity:0.82;}
+    .footer{padding:60px 0 40px;border-top:1px solid var(--border);}
+    .footer-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(3rem,9vw,8rem);text-transform:uppercase;color:transparent;-webkit-text-stroke:1px #2a0000;margin-top:40px;line-height:1;user-select:none;overflow:hidden;}
+    .footer-copy{font-size:0.72rem;color:#333;margin-top:16px;padding-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+    @media(max-width:768px){
+      nav{padding:12px 24px;flex-wrap:wrap;gap:8px;}
+      .wrap{padding:0 24px;}
+      .hero{padding-top:100px;}
+      .meta-grid{grid-template-columns:1fr;}
+      .area-grid{grid-template-columns:1fr;}
+      .doc-row{flex-direction:column;align-items:flex-start;}
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="https://calm-ay.github.io"><span class="bolt">⚡</span> CALM-AY</a>
+  <a class="nav-back" href="https://calm-ay.github.io">← Back to Portfolio</a>
+</nav>
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <div class="label">NITHUB SECURITY LAB · CTF · GUIDED WALKTHROUGH</div>
+      <div class="heading">
+        <span class="w">NITHUB CTF</span>
+        <span class="r">Web Exploit Chain</span>
+      </div>
+      <div class="hero-divider"></div>
+      <div class="tag-row">
+        <span class="tag">RECON</span>
+        <span class="tag">INFO DISCLOSURE</span>
+        <span class="tag">SQLi BYPASS</span>
+        <span class="tag">IDOR</span>
+        <span class="tag">COOKIE TAMPERING</span>
+        <span class="tag">BURP · FFUF · DEVTOOLS</span>
+      </div>
+      <p class="hero-sub">A guided walkthrough of the NITHUB Security Lab web CTF — six stages from a first <code style="color:var(--red)">robots.txt</code> read to executive payroll. Directory discovery leaks backup files, a concatenated login query falls to SQL injection, an unchecked <code style="color:var(--red)">?id=</code> walks employee records up to the CEO, and a client-side role cookie hands over the admin panel. Each stage carries the <em>why</em>, not just the payload — built to teach the reasoning behind the chain.</p>
+      <a href="#chain" class="btn-r">VIEW THE CHAIN ↓</a>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" style="padding-bottom:0;">
+    <div class="label">THE TARGET</div>
+    <div class="meta-grid">
+      <div class="meta-card"><div class="meta-k">Objective</div><div class="meta-v">Reach the admin payroll and capture the flag</div></div>
+      <div class="meta-card"><div class="meta-k">Class</div><div class="meta-v">Web application · guided / beginner-friendly</div></div>
+      <div class="meta-card"><div class="meta-k">Toolkit</div><div class="meta-v">Burp Suite · ffuf / gobuster · browser DevTools</div></div>
+      <div class="meta-card"><div class="meta-k">Bug Classes</div><div class="meta-v">Info disclosure · SQLi · IDOR · client-trust</div></div>
+      <div class="meta-card"><div class="meta-k">Endpoints</div><div class="meta-v"><code>/dev-backup</code> · <code>/portal</code> · <code>/profile</code> · <code>/admin/payroll</code></div></div>
+      <div class="meta-card"><div class="meta-k">Result</div><div class="meta-v" style="color:var(--red)">Admin payroll unlocked · flag captured</div></div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section id="chain" class="section" style="padding-bottom:0;">
+    <div class="label">HOW THE PIECES CONNECT</div>
+    <div class="area-grid">
+      <div class="area-card"><div class="area-step">01</div>
+        <div class="area-label">Recon</div>
+        <div class="area-title">Find the Hidden Path</div>
+        <div class="area-desc">Reading <code>robots.txt</code> hands over a <code>Disallow: /dev-backup</code> — the same paths ffuf and gobuster would brute-force. Recon is mapping the attack surface.</div>
+      </div>
+      <div class="area-card"><div class="area-step">02</div>
+        <div class="area-label">Info Disclosure</div>
+        <div class="area-title">Read the Leaked Files</div>
+        <div class="area-desc">Directory listing on <code>/dev-backup</code> exposes <code>config.php.bak</code> and <code>notes.txt</code> — the notes spell out three weaknesses that become the roadmap for the whole box.</div>
+      </div>
+      <div class="area-card"><div class="area-step">03</div>
+        <div class="area-label">Exploitation</div>
+        <div class="area-title">SQLi Login Bypass</div>
+        <div class="area-desc">In Burp Repeater, <code>' OR '1'='1' --</code> in the username turns the concatenated login query always-true and comments out the rest — auth bypassed, redirected in as an employee.</div>
+      </div>
+      <div class="area-card"><div class="area-step">04</div>
+        <div class="area-label">Pivot</div>
+        <div class="area-title">IDOR to the CEO</div>
+        <div class="area-desc">The server serves any <code>?id=</code> without an ownership check; intercepting and walking <code>1002 → 1005</code> in Burp lands on the CEO's record.</div>
+      </div>
+      <div class="area-card"><div class="area-step">05</div>
+        <div class="area-label">Privilege Escalation</div>
+        <div class="area-title">Role Cookie Tampering</div>
+        <div class="area-desc">Editing <code>role=employee</code> to <code>role=admin</code> — in Burp or straight in DevTools — unlocks <code>/admin/payroll</code>. Role checks belonged on the server, not in a client cookie.</div>
+      </div>
+      <div class="area-card" style="border-color:#2a1000;background:#0d0700;"><div class="area-step" style="color:#2a1a00;">✓</div>
+        <div class="area-label">Capture</div>
+        <div class="area-title">One Continuous Path</div>
+        <div class="area-desc">The executive payroll loads and the flag drops. None of the five bugs is exotic — the lesson is that a leaked backup, a string-built query, an unchecked id, and a trusted cookie form one chain, not four isolated findings.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" style="padding-top:40px;">
+    <div class="label">WALKTHROUGH</div>
+    <div class="doc-row">
+      <div>
+        <div class="doc-title">NITHUB CTF — Guided Walkthrough (Full Report)</div>
+        <div class="doc-desc">The complete hands-on guide: every command, request, and Burp step from recon to flag, with the reasoning behind each stage and the defensive takeaway — why the bug existed and how it should have been closed.</div>
+      </div>
+      <a href="./NITHUB_CTF_Walkthrough.pdf" class="doc-dl" download>DOWNLOAD WALKTHROUGH ↓</a>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer class="footer">
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+      <a href="https://calm-ay.github.io" style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gray);text-decoration:none;font-weight:700;">← Portfolio</a>
+      <a href="https://github.com/Calm-Ay" style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gray);text-decoration:none;font-weight:700;">GitHub ↗</a>
+      <a href="https://www.linkedin.com/in/rasaq-ayomide-sec" style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gray);text-decoration:none;font-weight:700;">LinkedIn ↗</a>
+    </div>
+    <div class="footer-name">CALM AY</div>
+    <div class="footer-copy">
+      <span>Rasaq Ayomide · Web Application Security · Offensive Security Engineer</span>
+      <span>Solved and documented end-to-end. For educational and authorized penetration-testing purposes only.</span>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
